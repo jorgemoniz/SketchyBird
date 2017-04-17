@@ -275,6 +275,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.jorgemoniz.SketchyBird;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 3.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -287,6 +288,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.jorgemoniz.SketchyBird;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 3.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -309,6 +311,7 @@
 				093D24701E9C16F400F2ADA9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
