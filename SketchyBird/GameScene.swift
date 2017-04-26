@@ -19,17 +19,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var limitLand = SKNode()
     var timer = Timer()
     
-    //grupos de colision
+    // grupos de colision
     let birdGroup : UInt32 = 1
     let objectsGroup : UInt32 = 2
     let gapGroup : UInt32 = 4
     let movinGroup = SKNode()
     
+    // grupo de labels
+    var score = 0
+    var scoreLabel = SKLabelNode()
+    var gameOverLabel = SKLabelNode()
+    var gameOver = false
+    
     //MARK: - movimientos
     override func didMove(to view: SKView) {
-        //definimos quien es el delegado para tener en cuenta las colisiones
+        // definimos quien es el delegado para tener en cuenta las colisiones
         self.physicsWorld.contactDelegate = self
-        //manipulamos la gravedad
+        // manipulamos la gravedad
         self.physicsWorld.gravity = CGVector(dx: 0, dy: -5.0)
         self.addChild(movinGroup)
         
@@ -37,14 +43,30 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         makeBackground()
         makeLoopPipe1AndPipe2()
         makeBird()
-        
+        makeLabel()
+    }
+    
+    func didBegin(_ contact: SKPhysicsContact) {
+        if contact.bodyA.categoryBitMask == gapGroup || contact.bodyB.categoryBitMask == gapGroup {
+            score += 1
+            scoreLabel.text = "\(score)"
+        } else if !gameOver {
+            gameOver = true
+            movinGroup.speed = 0
+            timer.invalidate()
+            makeLabelGameOver()
+        }
     }
     
     //MARK: - inicio de toques en la pantalla
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        //Reset de la posicion y velocidad del pajaro
+        if !gameOver {
+        // reset de la posicion y velocidad del pajaro
         bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
-        bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 160))
+        bird.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 100))
+        } else {
+            resetGame()
+        }
     }
     
     //MARK: - actualizacion de la vista
@@ -63,17 +85,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func makeBackground() {
-        //Creacion de la textura
+        // Creacion de la textura
         let backgroundFinal = SKTexture(imageNamed: "bg")
-        //Movimiento del fondo
-        let moveBackground = SKAction.moveBy(x: -backgroundFinal.size().width, y: 0, duration: 6)
+        // Movimiento del fondo
+        let moveBackground = SKAction.moveBy(x: -backgroundFinal.size().width, y: 0, duration: 5)
         
         let replaceBackground = SKAction.moveBy(x: backgroundFinal.size().width, y: 0, duration: 0)
         let moveBackgroundForever = SKAction.repeatForever(SKAction.sequence([moveBackground, replaceBackground]))
         
         for c_imagen in 0..<3 {
             background = SKSpriteNode(texture: backgroundFinal)
-            background.position = CGPoint(x: -(backgroundFinal.size().width / 2) + (backgroundFinal.size().width * CGFloat(c_imagen)) , y: self.frame.midY)
+            background.position = CGPoint(x: -(backgroundFinal.size().width / 2) + (backgroundFinal.size().width * CGFloat(c_imagen)) , y: 0)
             background.zPosition = 1
             background.size.height = self.frame.height
             background.run(moveBackgroundForever)
@@ -83,19 +105,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func makePipesFinal() {
-        //variables internas
+        // variables internas
         let gapheight = bird.size.height * 4
-        //se mueve una vez salga la tubería tanto para arriba como para abajo un numero entre 1/4 y la mitad de la pantalla
+        // se mueve una vez salga la tubería tanto para arriba como para abajo un numero entre 1/4 y la mitad de la pantalla
         let movementAmount = arc4random_uniform(UInt32(self.frame.height / 2))
-        //desplazamiento de la tuberia - entre 0 y la mitad de la pantalla pero le resto 1/4 de esta
+        // desplazamiento de la tuberia - entre 0 y la mitad de la pantalla pero le resto 1/4 de esta
         let pipeOffset = CGFloat(movementAmount) - self.frame.size.height / 4
         
-        //movemos las tuberias
+        // movemos las tuberias
         let movePipes = SKAction.moveBy(x: -self.frame.width - 200, y: 0, duration: TimeInterval(self.frame.width / 200))
         let removePipes = SKAction.removeFromParent()
         let moveAndRemovePipes = SKAction.sequence([movePipes, removePipes])
         
-        //creamos la textura Uno
+        // creamos la textura Uno
         let pipeTexture1 = SKTexture(imageNamed: "pipe1")
         pipeFinal1 = SKSpriteNode(texture: pipeTexture1)
         pipeFinal1.position = CGPoint(x: self.frame.width - self.frame.width / 2, y: self.frame.midY + (pipeFinal1.size.height / 2) + (gapheight / 2) + pipeOffset)
@@ -105,9 +127,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         pipeFinal1.run(moveAndRemovePipes)
         pipeFinal1.zPosition = 5
-        self.addChild(pipeFinal1)
+        //self.addChild(pipeFinal1)
+        self.movinGroup.addChild(pipeFinal1)
         
-        //creamos la textura Dos
+        // creamos la textura Dos
         let pipeTexture2 = SKTexture(imageNamed: "pipe2")
         pipeFinal2 = SKSpriteNode(texture: pipeTexture2)
         pipeFinal2.position = CGPoint(x: self.frame.width - self.frame.width / 2, y: self.frame.midY - (pipeFinal2.size.height / 2) - (gapheight / 2) + pipeOffset)
@@ -120,7 +143,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         //self.addChild(pipeFinal2)
         self.movinGroup.addChild(pipeFinal2)
         
-        //grupo de colision que atraviesa el gap / hueco
+        // grupo de colision que atraviesa el gap / hueco
         makeGapeNode(pipeOffset, gapHeight: gapheight, moveAndRemovePipes: moveAndRemovePipes)
     }
     
@@ -168,11 +191,42 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func makeLoopPipe1AndPipe2() {
-        //Usamos el timer un objeto que determine cada cuantos segundos ha de crearse una tuberia
+        // Usamos el timer un objeto que determine cada cuantos segundos ha de crearse una tuberia
         timer = Timer.scheduledTimer(timeInterval: 3,
                                      target: self,
                                      selector: #selector(makePipesFinal),
                                      userInfo: nil,
                                      repeats: true)
+    }
+    
+    func makeLabel() {
+        scoreLabel.fontName = "Helvetica"
+        scoreLabel.fontSize = 60
+        scoreLabel.text = "0"
+        scoreLabel.position = CGPoint(x: 0, y: self.frame.height / 2 - 90)
+        scoreLabel.zPosition = 10
+        self.addChild(scoreLabel)
+    }
+    
+    func makeLabelGameOver() {
+        gameOverLabel.fontName = "Helvetica"
+        gameOverLabel.fontSize = 50
+        gameOverLabel.text = "GAME OVER! :("
+        gameOverLabel.position = CGPoint(x: 0, y: 0)
+        gameOverLabel.zPosition = 10
+        self.addChild(gameOverLabel)
+    }
+    
+    func resetGame() {
+        score = 0
+        scoreLabel.text = "0"
+        movinGroup.removeAllChildren()
+        makeBackground()
+        makeLoopPipe1AndPipe2()
+        bird.position = CGPoint(x: 0, y: 0)
+        bird.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+        gameOverLabel.removeFromParent()
+        movinGroup.speed = 1
+        gameOver = false
     }
 }
